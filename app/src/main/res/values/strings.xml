@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Connected Devices</string>
+    <string-array name="uri_array">
+        <item>ms-windows-store://pdp/?productid=9nblggh4tssg</item>
+        <item>https://www.microsoft.com/store/apps/9nblggh4tssg</item>
+    </string-array>
+</resources>

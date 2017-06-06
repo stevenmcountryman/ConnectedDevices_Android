@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:weightSum="1">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorPrimary"
+        android:paddingTop="16dp">
+
+        <TextView
+            android:id="@+id/device_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            android:hint="type"
+            android:textAlignment="center"
+            android:textColor="#ffffff"
+            android:textSize="80sp" />
+
+        <TextView
+            android:id="@+id/favoriteBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_marginEnd="0dp"
+            android:layout_marginTop="15dp"
+            android:layout_toStartOf="@+id/device_type"
+            android:padding="20dp"
+            android:text="star"
+            android:textColor="#ffffff"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/editBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_marginStart="0dp"
+            android:layout_marginTop="15dp"
+            android:layout_toEndOf="@+id/device_type"
+            android:padding="20dp"
+            android:text="edit"
+            android:textColor="#ffffff"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/device_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/device_type"
+            android:layout_centerHorizontal="true"
+            android:layout_marginBottom="10dp"
+            android:layout_marginTop="10dp"
+            android:hint="name"
+            android:textColor="#ffffff"
+            android:textSize="24sp" />
+
+        <RelativeLayout
+            android:id="@+id/notificationBox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentRight="true"
+            android:layout_below="@+id/device_name"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/notificationText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/colorPrimaryDark"
+                android:padding="8dp"
+                android:text="notification"
+                android:textAlignment="center"
+                android:textColor="@color/colorAccent"
+                android:textSize="18sp"
+                android:visibility="visible" />
+
+        </RelativeLayout>
+
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:isScrollContainer="true"
+        android:padding="20dp">
+
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/launch_uri_button_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_centerHorizontal="true">
+
+            <EditText
+                android:id="@+id/MessageBox"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/launch_uri_spinner"
+                android:layout_weight="1"
+                android:hint="send text to clipboard"
+                android:inputType="text"
+                android:padding="10dp" />
+
+            <Button
+                android:id="@+id/launch_uri_btn"
+                android:layout_width="wrap_content"
+                android:layout_height="60dp"
+                android:layout_below="@+id/MessageBox"
+                android:background="@android:color/transparent"
+                android:enabled="false"
+                android:padding="10dp"
+                android:text="send"
+                android:textColorHighlight="@color/colorAccent"
+                android:textSize="28sp" />
+
+        </LinearLayout>
+
+        <RelativeLayout
+            android:id="@+id/sendOptionsLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/launch_uri_button_layout"
+            android:layout_centerHorizontal="true"
+            android:visibility="invisible">
+
+            <Button
+                android:id="@+id/MyTubeBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toEndOf="@+id/TubeCastBtn"
+                android:enabled="false"
+                android:text="mytube" />
+
+            <Button
+                android:id="@+id/BrowserBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toStartOf="@+id/TubeCastBtn"
+                android:enabled="true"
+                android:text="Browser" />
+
+            <Button
+                android:id="@+id/TubeCastBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:enabled="false"
+                android:text="TubeCast" />
+
+        </RelativeLayout>
+
+
+    </RelativeLayout>
+
+</LinearLayout>
