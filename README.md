@@ -1,4 +1,7 @@
-# Project Rome for Android sample
-This app allows you to view all of your discoverable Windows devices, choose one, and launch a URI on it. 
+# Connected Devices (UWP)
 
-Before you launch this app, you must register with Microsoft by following the instructions on the [Microsoft developer portal](https://apps.dev.microsoft.com/). This will allow your app to access Microsoft's Connected Devices platform by having users sign in to their Microsoft accounts (MSAs).
+Welcome to the GitHub Repo for the Connected Devices app for Windows 10 UWP. 
+
+This is a passion project done out of love for the Microsoft development ecosystem and their fantastic RemoteSystems APIs. 
+
+It is a constant work in progress. Thanks for your support!
