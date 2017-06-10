@@ -4,6 +4,7 @@
 
 package simplisidy.connecteddevices;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DialogFragment;
 import android.content.DialogInterface;
@@ -11,6 +12,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
@@ -29,6 +31,16 @@ import com.microsoft.connecteddevices.Platform;
 import com.microsoft.connecteddevices.RemoteLaunchUriStatus;
 import com.microsoft.connecteddevices.RemoteLauncher;
 import com.microsoft.connecteddevices.RemoteSystemConnectionRequest;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -36,6 +48,7 @@ import static com.microsoft.connecteddevices.RemoteLaunchUriStatus.SUCCESS;
 
 public class DeviceActivity extends FragmentActivity {
     private Device device;
+    private byte[] bytesToSend;
     private EditText _launchUriEditText;
     private RelativeLayout _sendOptionsLayout;
     private Button _browserButton;
@@ -45,6 +58,7 @@ public class DeviceActivity extends FragmentActivity {
     private Button _tubeCastButton;
     private boolean tubeCastSelected = false;
     private Button _sendButton;
+    private Button _attachButton;
     private Typeface iconFont;
     private TextView favBtn;
     private TextView editBtn;
@@ -53,6 +67,8 @@ public class DeviceActivity extends FragmentActivity {
     private final String FAVORITE = "\uE1CF";
     private final String EDIT = "\uE70F";
     private final String SEND = "\uE122";
+    private final String ATTACH = "\uE16C";
+    private final String DELETE = "\uE107";
     private Boolean isFavorite = false;
     private int HIGHLIGHT;
     private RelativeLayout notificationArea;
@@ -67,12 +83,21 @@ public class DeviceActivity extends FragmentActivity {
         notificationArea = (RelativeLayout) findViewById(R.id.notificationBox);
         notificationText = (TextView) findViewById(R.id.notificationText);
 
+        _attachButton = (Button) findViewById(R.id.attach_file_btn);
+        _attachButton.setTypeface(iconFont);
+        _attachButton.setText(ATTACH);
+        _attachButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                OnAttachClick();
+            }
+        });
+
         _sendButton = (Button) findViewById(R.id.launch_uri_btn);
         _sendButton.setTypeface(iconFont);
         _sendButton.setText(SEND);
         _sendButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                onLaunchClick();
+                OnSendClick();
             }
         });
         HIGHLIGHT = _sendButton.getHighlightColor();
@@ -316,7 +341,44 @@ public class DeviceActivity extends FragmentActivity {
         super.onPause();
     }
 
-    public void onLaunchClick() {
+    public void OnAttachClick() {
+        if (device.getSystem() != null) {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("file/*");
+            startActivityForResult(intent, 42);
+        }
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent resultData) {
+        if (requestCode == 42 && resultCode == Activity.RESULT_OK) {
+            Uri uri = null;
+            if (resultData != null) {
+                uri = resultData.getData();
+
+                try {
+                    readTextFromUri(uri);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private void readTextFromUri(Uri uri) throws IOException {
+        InputStream inputStream = getContentResolver().openInputStream(uri);
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        int nRead;
+        bytesToSend = new byte[inputStream.available()];
+
+        while ((nRead = inputStream.read(bytesToSend, 0, bytesToSend.length)) != -1) {
+            buffer.write(bytesToSend, 0, nRead);
+        }
+        buffer.flush();
+    }
+
+    public void OnSendClick() {
         if (device.getSystem() != null) {
             launchUri(new RemoteSystemConnectionRequest(device.getSystem()));
         }
