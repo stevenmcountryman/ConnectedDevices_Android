@@ -108,6 +108,7 @@
                 android:background="@android:color/transparent"
                 android:padding="10dp"
                 android:text="+"
+                android:textColor="@color/colorAccent"
                 android:textColorHighlight="@color/colorAccent"
                 android:textSize="28sp" />
 
@@ -115,7 +116,6 @@
                 android:id="@+id/MessageBox"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_below="@+id/launch_uri_spinner"
                 android:layout_weight="1"
                 android:hint="send text to clipboard"
                 android:inputType="text"
@@ -125,7 +125,6 @@
                 android:id="@+id/launch_uri_btn"
                 android:layout_width="52dp"
                 android:layout_height="wrap_content"
-                android:layout_below="@+id/MessageBox"
                 android:background="@android:color/transparent"
                 android:enabled="false"
                 android:padding="10dp"

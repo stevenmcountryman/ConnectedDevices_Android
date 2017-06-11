@@ -7,14 +7,18 @@ package simplisidy.connecteddevices;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DialogFragment;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.provider.MediaStore;
+import android.provider.OpenableColumns;
 import android.support.v4.app.FragmentActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -34,14 +38,30 @@ import com.microsoft.connecteddevices.RemoteSystemConnectionRequest;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.URISyntaxException;
+import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static com.microsoft.connecteddevices.RemoteLaunchUriStatus.SUCCESS;
@@ -49,6 +69,7 @@ import static com.microsoft.connecteddevices.RemoteLaunchUriStatus.SUCCESS;
 public class DeviceActivity extends FragmentActivity {
     private Device device;
     private byte[] bytesToSend;
+    private String fileNameToSend;
     private EditText _launchUriEditText;
     private RelativeLayout _sendOptionsLayout;
     private Button _browserButton;
@@ -343,45 +364,216 @@ public class DeviceActivity extends FragmentActivity {
 
     public void OnAttachClick() {
         if (device.getSystem() != null) {
-            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType("file/*");
-            startActivityForResult(intent, 42);
-        }
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent resultData) {
-        if (requestCode == 42 && resultCode == Activity.RESULT_OK) {
-            Uri uri = null;
-            if (resultData != null) {
-                uri = resultData.getData();
+            if (_attachButton.getText() == DELETE) {
+                bytesToSend = null;
+                fileNameToSend = null;
+                _launchUriEditText.setText("");
+                _launchUriEditText.setEnabled(true);
+                _attachButton.setText(ATTACH);
+            }
+            else {
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("*/*");
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
 
                 try {
-                    readTextFromUri(uri);
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    startActivityForResult(Intent.createChooser(intent, "Select a file to send"), 17);
+                } catch (android.content.ActivityNotFoundException ex) {
+                    // Potentially direct the user to the Market with a Dialog
+                    Toast.makeText(this, "Please install a File Manager.", Toast.LENGTH_SHORT).show();
                 }
             }
         }
     }
 
-    private void readTextFromUri(Uri uri) throws IOException {
-        InputStream inputStream = getContentResolver().openInputStream(uri);
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        int nRead;
-        bytesToSend = new byte[inputStream.available()];
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent resultData) {
+        switch (requestCode) {
+            case 17:
+                if (resultCode == RESULT_OK) {
+                    try {
+                        Uri uri = resultData.getData();
+                        fileNameToSend = getFileName(uri);
+                        try {
+                            InputStream inputStream = getContentResolver().openInputStream(uri);
 
-        while ((nRead = inputStream.read(bytesToSend, 0, bytesToSend.length)) != -1) {
-            buffer.write(bytesToSend, 0, nRead);
+                            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                            int nRead;
+                            bytesToSend = new byte[inputStream.available()];
+                            while ((nRead = inputStream.read(bytesToSend, 0, bytesToSend.length)) != -1) {
+                                buffer.write(bytesToSend, 0, nRead);
+                            }
+                            buffer.flush();
+
+                            _launchUriEditText.setText("attached file");
+                            _launchUriEditText.setEnabled(false);
+                            _attachButton.setText(DELETE);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    } catch (Exception e) {
+                        showNotification("Cannot access files from that app");
+                    }
+                }
+                break;
         }
-        buffer.flush();
+        super.onActivityResult(requestCode, resultCode, resultData);
+    }
+    String getFileName(Uri uri) {
+        String result = null;
+        if (uri.getScheme().equals("content")) {
+            Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+            try {
+                if (cursor != null && cursor.moveToFirst()) {
+                    result = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME));
+                }
+            } finally {
+                cursor.close();
+            }
+        }
+        if (result == null) {
+            result = uri.getPath();
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) {
+                result = result.substring(cut + 1);
+            }
+        }
+        return result;
     }
 
     public void OnSendClick() {
         if (device.getSystem() != null) {
-            launchUri(new RemoteSystemConnectionRequest(device.getSystem()));
+            if (bytesToSend != null) {
+                attemptSendFile();
+            }
+            else {
+                launchUri(new RemoteSystemConnectionRequest(device.getSystem()));
+            }
         }
+    }
+
+    private void attemptSendFile() {
+        String hostName = getIPAddress(true);
+        beginFileTransfer(hostName);
+    }
+
+    public static String getIPAddress(boolean useIPv4) {
+        try {
+            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+            for (NetworkInterface intf : interfaces) {
+                List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
+                for (InetAddress addr : addrs) {
+                    if (!addr.isLoopbackAddress()) {
+                        String sAddr = addr.getHostAddress();
+                        //boolean isIPv4 = InetAddressUtils.isIPv4Address(sAddr);
+                        boolean isIPv4 = sAddr.indexOf(':')<0;
+
+                        if (useIPv4) {
+                            if (isIPv4)
+                                return sAddr;
+                        } else {
+                            if (!isIPv4) {
+                                int delim = sAddr.indexOf('%'); // drop ip6 zone suffix
+                                return delim<0 ? sAddr.toUpperCase() : sAddr.substring(0, delim).toUpperCase();
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ex) { } // for now eat exceptions
+        return "";
+    }
+
+    private void beginFileTransfer(String hostName) {
+        final RemoteSystemConnectionRequest connectionRequest = new RemoteSystemConnectionRequest(device.getSystem());
+        try {
+            String url = "share-app:?FileName=" + fileNameToSend + "&IpAddress=" + hostName;
+            new RemoteLauncher().LaunchUriAsync(connectionRequest, url,
+                    new IRemoteLauncherListener() {
+                        @Override
+                        public void onCompleted(RemoteLaunchUriStatus status) {
+                        }
+                    });
+            beginListeningForSocket();
+        } catch (ConnectedDevicesException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void beginListeningForSocket() {
+        Thread socketThread = new Thread() {
+            public void run() {
+                ServerSocket serverSocket = null;
+                Socket socket = null;
+                DataInputStream input = null;
+                DataOutputStream output = null;
+
+
+                try {
+                    serverSocket = new ServerSocket(1717);
+                    boolean searching = true;
+                    while (searching) {
+                        try {
+                            socket = serverSocket.accept();
+                            input = new DataInputStream(socket.getInputStream());
+                            output = new DataOutputStream(socket.getOutputStream());
+                            searching = false;
+
+                            int position = 0;
+                            int total = bytesToSend.length;
+                            int blockSize = 7171;
+                            int currBlock = 7171;
+                            byte[] chunkToSend = null;
+                            if (bytesToSend != null) {
+                                while (position < total) {
+                                    if (total - position >= blockSize) {
+                                        currBlock = blockSize;
+                                        chunkToSend = new byte[currBlock];
+                                    } else {
+                                        currBlock = total - position;
+                                        chunkToSend = new byte[currBlock];
+                                    }
+                                    output.writeBoolean(true);
+                                    output.writeInt(chunkToSend.length);
+                                    final long percentage = Math.round(((double)position / (double)total) * 100.0);
+                                    output.writeInt((int)percentage);
+                                    chunkToSend = Arrays.copyOfRange(bytesToSend, position, position + currBlock);
+                                    output.write(chunkToSend);
+                                    position = position + currBlock;
+                                }
+                                output.writeBoolean(false);
+                            }
+
+                        } catch (Exception e) {
+
+                        }
+                        finally {
+                            try {
+                                socket.close();
+                                serverSocket.close();
+                                input.close();
+                                output.close();
+                                runOnUiThread(new Runnable() {
+                                    public void run() {
+                                        _launchUriEditText.setText("");
+                                        _launchUriEditText.setEnabled(true);
+                                        _attachButton.setText(ATTACH);
+                                        bytesToSend = null;
+                                        fileNameToSend = null;
+                                    }
+                                });
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        socketThread.start();
+
     }
 
     private void launchUri(final RemoteSystemConnectionRequest connectionRequest) {

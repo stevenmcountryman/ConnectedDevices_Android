@@ -61,9 +61,9 @@ public class MainActivity extends FragmentActivity implements ActivityCompat.OnR
 
         Random rng = new Random();
         _permissionRequestCode = rng.nextInt(128);
-        int permissionCheck = ContextCompat.checkSelfPermission(this.getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION);
+        int permissionCheck = ContextCompat.checkSelfPermission(this.getApplicationContext(), Manifest.permission.ACCESS_NETWORK_STATE);
         if (permissionCheck == PackageManager.PERMISSION_DENIED) {
-            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_COARSE_LOCATION}, _permissionRequestCode);
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_NETWORK_STATE}, _permissionRequestCode);
             // InitializePlatform will be later invoked from onRequestPermissionsResult
         }
         else {
@@ -99,7 +99,6 @@ public class MainActivity extends FragmentActivity implements ActivityCompat.OnR
     }
 
     public void onLoginClick(View view) {
-        _signInButton.setEnabled(false);
         _authDialog = new Dialog(this);
         _authDialog.setContentView(R.layout.auth_dialog);
         _web = (WebView) _authDialog.findViewById(R.id.webv);
@@ -131,6 +130,7 @@ public class MainActivity extends FragmentActivity implements ActivityCompat.OnR
                     String error = uri.getQueryParameter("error");
                     if (code != null && !authComplete) {
                         authComplete = true;
+                        _signInButton.setEnabled(false);
                         _authDialog.dismiss();
 
                         if (_authCodeHandler != null) {
