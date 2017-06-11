@@ -12,8 +12,12 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
+import android.media.Image;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -26,6 +30,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -80,6 +85,7 @@ public class DeviceActivity extends FragmentActivity {
     private boolean tubeCastSelected = false;
     private Button _sendButton;
     private Button _attachButton;
+    private ImageView _fileImageView;
     private Typeface iconFont;
     private TextView favBtn;
     private TextView editBtn;
@@ -102,6 +108,10 @@ public class DeviceActivity extends FragmentActivity {
         iconFont = Typeface.createFromAsset(getApplicationContext().getAssets(),"fonts/segmdl2.ttf");
 
         notificationArea = (RelativeLayout) findViewById(R.id.notificationBox);
+        notificationArea.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                OnNotificationAreaClick();
+            }});
         notificationText = (TextView) findViewById(R.id.notificationText);
 
         _attachButton = (Button) findViewById(R.id.attach_file_btn);
@@ -141,6 +151,7 @@ public class DeviceActivity extends FragmentActivity {
                 ToggleTubeCastButton();
             }
         });
+        _fileImageView = (ImageView) findViewById(R.id.fileImageView);
         _launchUriEditText = (EditText) findViewById(R.id.MessageBox);
         _launchUriEditText.addTextChangedListener(new TextWatcher() {
             @Override
@@ -159,11 +170,17 @@ public class DeviceActivity extends FragmentActivity {
                     _sendButton.setEnabled(true);
                     _sendButton.setTextColor(HIGHLIGHT);
                     CheckIsWebLink(editable.toString());
+                    if (bytesToSend == null) {
+                        _attachButton.setEnabled(false);
+                        _attachButton.setTextColor(Color.GRAY);
+                    }
                 }
                 else {
                     _sendOptionsLayout.setVisibility(View.INVISIBLE);
                     _sendButton.setEnabled(false);
                     _sendButton.setTextColor(Color.GRAY);
+                    _attachButton.setEnabled(true);
+                    _attachButton.setTextColor(HIGHLIGHT);
                 }
             }
         });
@@ -209,6 +226,29 @@ public class DeviceActivity extends FragmentActivity {
                 EditDeviceName();
             }
         });
+
+        this.resetNotification();
+    }
+
+    private void resetNotification() {
+        if (this.device.getIsAvailableByProximity()) {
+            showPersistentNotification("File sharing possible");
+        }
+        else {
+            showPersistentNotification("File sharing unlikely - tap for more info");
+        }
+    }
+
+    private void OnNotificationAreaClick() {
+        if (notificationText.getText() == "File sharing unlikely - tap for more info") {
+            AlertDialog.Builder alert = new AlertDialog.Builder(this);
+
+            alert.setTitle("File sharing unlikely");
+            alert.setMessage("Due to firewalls and other network restrictions, it is likely that a file transfer will not succeed between these two devices. It is recommended to only attempt file transfers between devices on the same local wireless or wired networks.\n\nYou can still try to send files if you'd like, but there is no guarantee that it will succeed.");
+
+            alert.create();
+            alert.show();
+        }
     }
 
     private void ToggleFavoriteDevice() {
@@ -370,6 +410,7 @@ public class DeviceActivity extends FragmentActivity {
                 _launchUriEditText.setText("");
                 _launchUriEditText.setEnabled(true);
                 _attachButton.setText(ATTACH);
+                _fileImageView.setVisibility(View.GONE);
             }
             else {
                 Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -383,6 +424,33 @@ public class DeviceActivity extends FragmentActivity {
                     Toast.makeText(this, "Please install a File Manager.", Toast.LENGTH_SHORT).show();
                 }
             }
+        }
+    }
+
+    private Boolean isImage(String fileName) {
+        if (fileName.contains(".jpg") || fileName.contains(".bmp") || fileName.contains(".png")) {
+            return true;
+        }
+        return false;
+    }
+
+    private void setFileImageView() {
+        try {
+            if (fileNameToSend != null && bytesToSend != null) {
+                if (isImage(fileNameToSend.toLowerCase())) {
+                    Bitmap bmp = BitmapFactory.decodeByteArray(bytesToSend, 0, bytesToSend.length);
+                    _fileImageView.setImageBitmap(bmp);
+                    _fileImageView.setVisibility(View.VISIBLE);
+                } else {
+                    InputStream ims = getAssets().open("file-icon.png");
+                    Drawable d = Drawable.createFromStream(ims, null);
+                    _fileImageView.setImageDrawable(d);
+                    ims.close();
+                    _fileImageView.setVisibility(View.VISIBLE);
+                }
+            }
+        } catch (IOException e) {
+
         }
     }
 
@@ -408,6 +476,9 @@ public class DeviceActivity extends FragmentActivity {
                             _launchUriEditText.setText("attached file");
                             _launchUriEditText.setEnabled(false);
                             _attachButton.setText(DELETE);
+
+                            setFileImageView();
+
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -503,6 +574,7 @@ public class DeviceActivity extends FragmentActivity {
     private void beginListeningForSocket() {
         Thread socketThread = new Thread() {
             public void run() {
+                showPersistentNotification("Waiting for connection...");
                 ServerSocket serverSocket = null;
                 Socket socket = null;
                 DataInputStream input = null;
@@ -515,6 +587,7 @@ public class DeviceActivity extends FragmentActivity {
                     while (searching) {
                         try {
                             socket = serverSocket.accept();
+                            showPersistentNotification("Sending file...");
                             input = new DataInputStream(socket.getInputStream());
                             output = new DataOutputStream(socket.getOutputStream());
                             searching = false;
@@ -537,22 +610,18 @@ public class DeviceActivity extends FragmentActivity {
                                     output.writeInt(chunkToSend.length);
                                     final long percentage = Math.round(((double)position / (double)total) * 100.0);
                                     output.writeInt((int)percentage);
+                                    showPersistentNotification(percentage + "% sent...");
                                     chunkToSend = Arrays.copyOfRange(bytesToSend, position, position + currBlock);
                                     output.write(chunkToSend);
                                     position = position + currBlock;
                                 }
                                 output.writeBoolean(false);
-                            }
-
-                        } catch (Exception e) {
-
-                        }
-                        finally {
-                            try {
+                                showNotification("Send complete!");
                                 socket.close();
                                 serverSocket.close();
                                 input.close();
                                 output.close();
+
                                 runOnUiThread(new Runnable() {
                                     public void run() {
                                         _launchUriEditText.setText("");
@@ -560,11 +629,13 @@ public class DeviceActivity extends FragmentActivity {
                                         _attachButton.setText(ATTACH);
                                         bytesToSend = null;
                                         fileNameToSend = null;
+                                        _fileImageView.setVisibility(View.GONE);
                                     }
                                 });
-                            } catch (IOException e) {
-                                e.printStackTrace();
                             }
+
+                        } catch (Exception e) {
+
                         }
                     }
                 } catch (IOException e) {
@@ -578,19 +649,18 @@ public class DeviceActivity extends FragmentActivity {
 
     private void launchUri(final RemoteSystemConnectionRequest connectionRequest) {
         try {
-            showNotification("Sharing to device");
+            showPersistentNotification("Sharing to device");
             final String url = getMessageToSend();
             new RemoteLauncher().LaunchUriAsync(connectionRequest, url,
                     new IRemoteLauncherListener() {
                         @Override
                         public void onCompleted(RemoteLaunchUriStatus status) {
-                            String message;
                             if (status == SUCCESS)
                             {
-                                message = "Launch succeeded";
+                                showNotification("Success!");
                             }
                             else if (status == RemoteLaunchUriStatus.PROTOCOL_UNAVAILABLE) {
-                                message = "Please install the app on target";
+                                showPersistentNotification("Please install the app on target");
 
                                 if (url.startsWith("tubecast")) {
                                     launchStore(connectionRequest, "ms-windows-store://pdp/?productid=9wzdncrdx3fs");
@@ -604,10 +674,8 @@ public class DeviceActivity extends FragmentActivity {
                             }
                             else
                             {
-                                message = "Launch failed with status " + status.toString();
+                                showPersistentNotification("Launch failed with status " + status.toString());
                             }
-
-                            showNotification(message);
                         }
                     });
         } catch (ConnectedDevicesException e) {
@@ -615,15 +683,29 @@ public class DeviceActivity extends FragmentActivity {
         }
     }
 
-    private void showNotification(String message) {
-        notificationText.setText(message);
-        notificationArea.setVisibility(View.VISIBLE);
-        notificationArea.postDelayed(hide, 2000);
+    private void showPersistentNotification(final String message) {
+        runOnUiThread(new Runnable() {
+            public void run() {
+                notificationText.setText(message);
+                notificationArea.setVisibility(View.VISIBLE);
+            }
+        });
+    }
+
+    private void showNotification(final String message) {
+        runOnUiThread(new Runnable() {
+            public void run() {
+                notificationText.setText(message);
+                notificationArea.setVisibility(View.VISIBLE);
+                notificationArea.postDelayed(hide, 4000);
+            }
+        });
     }
     private Runnable hide = new Runnable() {
         @Override
         public void run() {
             notificationArea.setVisibility(View.GONE);
+            resetNotification();
         }
     };
 
@@ -634,6 +716,7 @@ public class DeviceActivity extends FragmentActivity {
                     new IRemoteLauncherListener() {
                         @Override
                         public void onCompleted(RemoteLaunchUriStatus status) {
+                            showNotification("Attempting to launch store on device");
                         }
                     });
         } catch (ConnectedDevicesException e) {

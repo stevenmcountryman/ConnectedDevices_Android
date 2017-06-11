@@ -91,8 +91,18 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:isScrollContainer="true"
-        android:paddingBottom="12dp"
+        android:paddingBottom="20dp"
         android:paddingTop="12dp">
+
+        <ImageView
+            android:id="@+id/fileImageView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_above="@+id/launch_uri_button_layout"
+            android:layout_margin="40dp"
+            android:scaleType="fitCenter"
+            android:visibility="invisible"
+            app:srcCompat="@android:drawable/ic_menu_gallery" />
 
         <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
             android:id="@+id/launch_uri_button_layout"

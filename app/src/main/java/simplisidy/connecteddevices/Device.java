@@ -71,11 +71,6 @@ public class Device implements Parcelable {
         return MainActivity.sharedpreferences.getString(this.id, this.name);
     }
 
-    public Boolean nickNameSet() {
-        if (this.getName().equals(this.name)) return false;
-        return true;
-    }
-
     public void setName(String newName) {
         SharedPreferences.Editor editor = MainActivity.sharedpreferences.edit();
         if (newName != null && newName.length() > 0) {
